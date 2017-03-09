@@ -1,0 +1,7 @@
+#: config_form.php:4
+msgid "Restriction Text"
+msgstr "Texto de Restrição"
+
+#: config_form.php:8
+msgid "Warning text advising user that the content is restrict to certain place."
+msgstr "Texto avisando que o conteúdo é restrito a um determinado local."
