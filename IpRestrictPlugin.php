@@ -7,9 +7,15 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
     /**
      * @var array Hooks for the plugin.
      */
-    protected $_hooks = array('install', 'uninstall', 'upgrade', 'initialize',
-        'define_acl', 'define_routes', 'config_form', 'config',
-        'html_purifier_form_submission');
+    protected $_hooks = array(
+        'install', 
+        'uninstall', 
+        'upgrade', 
+        'initialize',
+        'config_form', 
+        'config',
+        'admin_items_show_sidebar'
+        );
     
     /**
      * @var array Filters for the plugin.
@@ -90,6 +96,25 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
     public function hookConfig()
     {
         set_option('ip_restrict_message', $_POST['restriction_text']);
+    }
+    
+    /*public function filterAdminItemsFormTabs($tabs, $args)
+    {
+        // insert the map tab before the Miscellaneous tab
+        $item = $args['item'];
+        $tabs['IP Restriction'] = 'formulário administrador';
+
+        return $tabs;
+    }*/
+    
+    
+    public function hookAdminItemsShowSidebar($args)
+    {
+        $view = $args['view'];
+        $item = $args['item'];
+
+        echo 'Achou!';
+
     }
     
 }
