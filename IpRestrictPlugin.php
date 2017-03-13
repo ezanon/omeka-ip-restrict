@@ -13,14 +13,15 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
         'upgrade', 
         'initialize',
         'config_form', 
-        'config',
-        'admin_items_show_sidebar'
+        'config'
         );
     
     /**
      * @var array Filters for the plugin.
      */
-    protected $_filters = array();
+    protected $_filters = array(
+        'admin_items_form_tabs'
+    );
     
     /**
      * @var array Options and their default values.
@@ -98,23 +99,53 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
         set_option('ip_restrict_message', $_POST['restriction_text']);
     }
     
-    /*public function filterAdminItemsFormTabs($tabs, $args)
+    /**
+     * Insert IP Restrict tab in the Admin
+     */
+    public function filterAdminItemsFormTabs($tabs, $args)
     {
-        // insert the map tab before the Miscellaneous tab
         $item = $args['item'];
-        $tabs['IP Restriction'] = 'formulário administrador';
-
+        $tabs['IP Restriction'] = $this->_getFormItem($item);
+        //$tabs['IP Restriction'] = require dirname(__FILE__) . '/config_form.php';
+        //$tabs['IP Restrict'] = 'TESTE';
         return $tabs;
-    }*/
+    }
     
-    
-    public function hookAdminItemsShowSidebar($args)
-    {
-        $view = $args['view'];
-        $item = $args['item'];
-
-        echo 'Achou!';
-
+    /**
+     * Return form admin of an item
+     */ 
+    private function _getFormItem($item){
+        // checkbox to active filter 
+        $html .= '<div class="field">';
+        $html .= ' <div class="two columns alpha">';
+        $html .=    get_view()->formLabel('active', __('Active filter to this item'));
+        $html .= ' </div>';
+        $html .= ' <div class="inputs five columns omega">';
+        $html .=    get_view()->formCheckBox('active', true, array('checked'=>false));;
+        $html .= ' </div></div>';
+        // IP range that can access the item
+        $html .= '<div class="field">';
+        $html .= ' <div class="two columns alpha">';
+        $html .=    get_view()->formLabel('allowedIP', __('IP/Mask allowed'));
+        $html .= ' </div>';
+        $html .= ' <div class="inputs two columns omega">';
+        $html .=    get_view()->formText('allowedIP', 'IP');
+        $html .= ' </div>';
+        $html .= ' <div class="inputs two columns omega">';
+        $html .=    get_view()->formText('mask', 'Mask');
+        $html .= ' </div></div>';
+        // Options to the restriction
+        $html .= '<div class="field">';
+        $html .= ' <div class="two columns alpha">';
+        $html .=    get_view()->formLabel('option', __('Choose the restriction'));
+        $html .= ' </div>';
+        $html .= ' <div class="inputs five columns omega">';
+        $options[1] = __('Dont show media');
+        $options[2] = __('Dont allow download of media');
+        $options[3] = __('Dont show intire item');
+        $html .=    get_view()->formSelect('option', $option, null,$options);
+        $html .= ' </div></div>';
+        return $html;
     }
     
 }
