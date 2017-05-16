@@ -13,7 +13,8 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
         'upgrade', 
         'initialize',
         'config_form', 
-        'config'
+        'config',
+        'after_save_record'
         );
     
     /**
@@ -37,18 +38,17 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
     {
        $db = $this->_db;
        $sql = "
-           CREATE TABLE IF NOT EXISTS `$db->IpRestrict` (
-            `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-            `record_id` int(10) unsigned NOT NULL,
-            `active` int(1) NOT NULL DEFAULT '0',
-            `IPv4` varchar(31) COLLATE utf8_unicode_ci NOT NULL,
-            `dont_show_anything` int(1) NOT NULL DEFAULT '0',
-            `dont_show_media` int(1) NOT NULL,
-            `dont_allow_download` int(1) NOT NULL,            
-            `only_thumbnail` int(1) NOT NULL,
-            PRIMARY KEY (`id`)
-          ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;            
-        ";
+            CREATE TABLE IF NOT EXISTS `omeka_ip_restricts` (
+             `id` int(10) unsigned NOT NULL,
+               `item_id` int(10) unsigned NOT NULL,
+               `resource` char(1) COLLATE utf8_unicode_ci NOT NULL,
+               `active` int(1) NOT NULL DEFAULT '0',
+               `firstIPv4` char(15) COLLATE utf8_unicode_ci NOT NULL,
+               `lastIPv4` char(15) COLLATE utf8_unicode_ci NOT NULL,
+               `option` int(1) NOT NULL,
+               `comments` text COLLATE utf8_unicode_ci
+             ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+       ";
        $db->query($sql);
        $this->_installOptions();
     }
@@ -106,8 +106,6 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
     {
         $item = $args['item'];
         $tabs['IP Restriction'] = $this->_getFormItem($item);
-        //$tabs['IP Restriction'] = require dirname(__FILE__) . '/config_form.php';
-        //$tabs['IP Restrict'] = 'TESTE';
         return $tabs;
     }
     
@@ -115,37 +113,113 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
      * Return form admin of an item
      */ 
     private function _getFormItem($item){
+        
+        $iprestrict = $this->_db->getTable('IpRestrict')->getIpRestrictByItem($item,TRUE);;
+        if ($iprestrict){
+            $active = ($iprestrict['active']==1) ? true : false;
+            $firstIPv4 = $iprestrict['firstIPv4'];
+            $lastIPv4 = $iprestrict['lastIPv4'];
+            $option = $iprestrict['option'];
+            $comments = $iprestrict['comments'];
+        }
+        else{
+            $active = false;
+            $firstIPv4 = __('First IP');
+            $lastIPv4 = __('Last IP');
+            $option = 1;
+            $comments = '';
+        }
         // checkbox to active filter 
-        $html .= '<div class="field">';
+        $html = '<div class="field">';
         $html .= ' <div class="two columns alpha">';
-        $html .=    get_view()->formLabel('active', __('Active filter to this item'));
+        $html .=    get_view()->formLabel('iprestrict[active]', __('Active filter to this item'));
         $html .= ' </div>';
         $html .= ' <div class="inputs five columns omega">';
-        $html .=    get_view()->formCheckBox('active', true, array('checked'=>false));;
-        $html .= ' </div></div>';
+        $html .=    get_view()->formCheckBox('iprestrict[active]', true, array('checked'=>$active));;
+        $html .= " </div></div>\n";
         // IP range that can access the item
         $html .= '<div class="field">';
         $html .= ' <div class="two columns alpha">';
-        $html .=    get_view()->formLabel('allowedIP', __('IP/Mask allowed'));
+        $html .=    get_view()->formLabel('iprestrict[firstIPv4]', __('IPv4 Range'));
         $html .= ' </div>';
         $html .= ' <div class="inputs two columns omega">';
-        $html .=    get_view()->formText('allowedIP', 'IP');
+        $html .=    get_view()->formText('iprestrict[firstIPv4]', $firstIPv4);
         $html .= ' </div>';
         $html .= ' <div class="inputs two columns omega">';
-        $html .=    get_view()->formText('mask', 'Mask');
-        $html .= ' </div></div>';
+        $html .=    get_view()->formText('iprestrict[lastIPv4]', $lastIPv4);
+        $html .= " </div></div>\n";
         // Options to the restriction
         $html .= '<div class="field">';
         $html .= ' <div class="two columns alpha">';
-        $html .=    get_view()->formLabel('option', __('Choose the restriction'));
+        $html .=    get_view()->formLabel('iprestrict[option]', __('Choose the restriction'));
         $html .= ' </div>';
         $html .= ' <div class="inputs five columns omega">';
-        $options[1] = __('Dont show media');
-        $options[2] = __('Dont allow download of media');
-        $options[3] = __('Dont show intire item');
-        $html .=    get_view()->formSelect('option', $option, null,$options);
-        $html .= ' </div></div>';
+        $options[1] = __('Show only thumbnails');
+        $options[2] = __('Dont show any media');
+        $options[3] = __('Dont allow download of media');
+        $options[4] = __('Dont show intire item');
+        $html .=    get_view()->formSelect('iprestrict[option]', $option, null,$options);
+        $html .= " </div></div>\n";
+        // some comments 
+        $html .= '<div class="field">';
+        $html .= ' <div class="two columns alpha">';
+        $html .=    get_view()->formLabel('iprestrict[comments]', __('Comments'));
+        $html .= ' </div>';
+        $html .= ' <div class="inputs five columns omega">';
+        $html .=    get_view()->formTextarea('iprestrict[comments]', $comments);
+        $html .= " </div></div>\n";
+        // div header
+        $html = '<div id="IpRestrictConfigForm"' . $html . "</div>\n";
         return $html;
+    }
+    
+    /**
+     * Save IP restriction to an item
+     */
+    public function hookAfterSaveRecord($args){
+        if (!$args['post']) {
+            return;
+        }
+        $item = $args['record']; 
+        $post = $args['post'];
+        
+        // if dont have iprestrict tab
+        if (!isset($post['iprestrict'])) {
+            return;
+        }
+        
+        // get iprestrict form values
+        $iprestrictPost = $post['iprestrict'];
+        
+        // find the data for the item
+        $iprestrictIds = $this->_db->getTable('IpRestrict')->getIpRestrictIdsByItem($item);
+        
+        // loop over all ipRestricts of an item
+        if ((!empty($iprestrictPost)) && ($iprestrictPost['active']==1)){
+            $iprestrictPost['resource'] = 'i';
+            // if register exists, update
+            if (!empty($iprestrictIds)){
+                foreach ($iprestrictIds as $id){
+                    $iprestrict = $this->_db->getTable('IpRestrict')->getIpRestrictByIdIP($item,$id);
+                    break; // delete this line when capable to register more than one IP range
+                }   
+            }
+            else {
+                // new object
+                $iprestrict = new IpRestrict;
+                $iprestrict->item_id = $item->id;
+            }
+            $iprestrict->setPostData($iprestrictPost);
+            $iprestrict->save();  
+        }
+        // Delete all registers if before exists and now not active
+        elseif((!empty($iprestrictIds)) && ($iprestrictPost['active']==0)){
+            foreach ($iprestrictIds as $id){
+                $iprestrict = $this->_db->getTable('IpRestrict')->getIpRestrictByIdIP($item,$id);
+                $iprestrict->delete();
+            }             
+        }
+        return;
     }
     
 }
