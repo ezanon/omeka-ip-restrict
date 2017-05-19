@@ -21,7 +21,10 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
      * @var array Filters for the plugin.
      */
     protected $_filters = array(
-        'admin_items_form_tabs'
+        'admin_items_form_tabs',
+        'display_elements',
+        'file_markup',
+        'addInfoToTitle' => array('Display', 'Item', 'Dublin Core', 'Title')
     );
     
     /**
@@ -145,6 +148,9 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
         $html .= ' <div class="inputs two columns omega">';
         $html .=    get_view()->formText('iprestrict[firstIPv4]', $firstIPv4);
         $html .= ' </div>';
+        $html .= ' <div class="inputs one columns omega">';
+        $html .=    __('to');
+        $html .= ' </div>';
         $html .= ' <div class="inputs two columns omega">';
         $html .=    get_view()->formText('iprestrict[lastIPv4]', $lastIPv4);
         $html .= " </div></div>\n";
@@ -169,7 +175,7 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
         $html .=    get_view()->formTextarea('iprestrict[comments]', $comments);
         $html .= " </div></div>\n";
         // div header
-        $html = '<div id="IpRestrictConfigForm"' . $html . "</div>\n";
+        $html = '<div id="IpRestrictConfigForm">' . $html . "</div>\n";
         return $html;
     }
     
@@ -220,6 +226,27 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
             }             
         }
         return;
+    }
+    
+    public function filterDisplayElements($elementSets){
+        return $elementSets;
+    }
+    
+    public function addInfoToTitle($text,$args){
+        return $text;
+        //* @todo : verify IP to add info to title
+        return $text . "<br><em>" . __('(Restrict)') . "</em>";
+    }
+    
+    public function filterFileMarkup($html, $args){
+        $file = $args['file'];
+        
+        if ($file instanceof File) {
+            $item = get_record_by_id('item', $file->item_id);
+            $iprestrictIds = $this->_db->getTable('IpRestrict')->getIpRestrictIdsByItem($item);
+            if ($iprestrictIds) return "<em>" . __('(Restrict access to file)') . "</em><br>";
+        }
+        return $html;
     }
     
 }
