@@ -241,10 +241,25 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
     public function filterFileMarkup($html, $args){
         $file = $args['file'];
         
-        if ($file instanceof File) {
-            $item = get_record_by_id('item', $file->item_id);
-            $iprestrictIds = $this->_db->getTable('IpRestrict')->getIpRestrictIdsByItem($item);
-            if ($iprestrictIds) return "<em>" . __('(Restrict access to file)') . "</em><br>";
+        if ($file instanceof File){
+            try {
+                $item = get_current_record('item');
+                $iprestrictIds = $this->_db->getTable('IpRestrict')->getIpRestrictIdsByItem($item); 
+                if ($iprestrictIds) { // has restrictions
+                    foreach ($iprestrictIds as $id){
+                        $iprestrict = $this->_db->getTable('IpRestrict')->getIpRestrictByIdIP($item,$id);
+                        $range = $iprestrict->firstIPv4 . '-' . $iprestrict->lastIPv4;
+                        if (ipInsideRange($_SERVER['REMOTE_ADDR'], $range)){ // access granted
+                            return $html;
+                        }
+                        else {
+                            
+                            return "<em>" . get_option('ip_restrict_message') . "</em><br>"; // access denied + information
+                        }
+                    }
+                }
+            }
+            catch (Omeka_View_Exception $ove){}    
         }
         return $html;
     }

@@ -1,8 +1,15 @@
 <?php
 
-/* 
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
+function ipInsideRange($ip,$range){
+    $ips = explode('-', $range);
+    $iplong = ip2long($ip);
+    $low_ip = ip2long($ips[0]);
+    $high_ip = ip2long($ips[1]);
+    if ($iplong <= $high_ip && $low_ip <= $iplong) {
+        return true;
+    }
+    else {
+        return false;
+    }
+}
 

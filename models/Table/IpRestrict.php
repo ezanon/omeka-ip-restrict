@@ -44,6 +44,9 @@ class Table_IpRestrict extends Omeka_Db_Table {
     }
     
     /**
+     * Get one IpRestrict Information 
+     * Return first founded or the required by the id
+     * 
      * @param type $item
      * @param type $id_iprestrict - id of ip_restrict table refers to the item
      * @return type 
