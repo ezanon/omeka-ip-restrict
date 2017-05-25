@@ -31,9 +31,12 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
      * @var array Options and their default values.
      */
     protected $_options = array(
-        'ip_restrict_message' => ''
+        'ip_restrict_message' => '',
+        'ip_ranges' => ''
     );
     
+    protected $numFiles = 0;
+
     /**
      * Install the plugin.
      */
@@ -46,8 +49,7 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
                `item_id` int(10) unsigned NOT NULL,
                `resource` char(1) COLLATE utf8_unicode_ci NOT NULL,
                `active` int(1) NOT NULL DEFAULT '0',
-               `firstIPv4` char(15) COLLATE utf8_unicode_ci NOT NULL,
-               `lastIPv4` char(15) COLLATE utf8_unicode_ci NOT NULL,
+               `ip_ranges` varchar(255) COLLATE utf8_unicode_ci NOT NULL,
                `option` int(1) NOT NULL,
                `comments` text COLLATE utf8_unicode_ci
              ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
@@ -100,6 +102,7 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
     public function hookConfig()
     {
         set_option('ip_restrict_message', $_POST['restriction_text']);
+        set_option('ip_ranges', $_POST['ip_ranges']);
     }
     
     /**
@@ -120,6 +123,7 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
         $iprestrict = $this->_db->getTable('IpRestrict')->getIpRestrictByItem($item,TRUE);;
         if ($iprestrict){
             $active = ($iprestrict['active']==1) ? true : false;
+            $ip_ranges = $iprestrict['ip_ranges'];
             $firstIPv4 = $iprestrict['firstIPv4'];
             $lastIPv4 = $iprestrict['lastIPv4'];
             $option = $iprestrict['option'];
@@ -127,6 +131,7 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
         }
         else{
             $active = false;
+            $ip_ranges = false;
             $firstIPv4 = __('First IP');
             $lastIPv4 = __('Last IP');
             $option = 1;
@@ -138,32 +143,36 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
         $html .=    get_view()->formLabel('iprestrict[active]', __('Active filter to this item'));
         $html .= ' </div>';
         $html .= ' <div class="inputs five columns omega">';
-        $html .=    get_view()->formCheckBox('iprestrict[active]', true, array('checked'=>$active));;
+        $html .=    get_view()->formCheckBox('iprestrict[active]', true, array('checked'=>$active));
         $html .= " </div></div>\n";
-        // IP range that can access the item
+        
+        // Choose IP ranges
+        $actualRanges = explode(',',$ip_ranges);
         $html .= '<div class="field">';
         $html .= ' <div class="two columns alpha">';
-        $html .=    get_view()->formLabel('iprestrict[firstIPv4]', __('IPv4 Range'));
+        $html .=    get_view()->formLabel('iprestrict[ipv4Range]', __('IPv4 Ranges Granted'));
         $html .= ' </div>';
-        $html .= ' <div class="inputs two columns omega">';
-        $html .=    get_view()->formText('iprestrict[firstIPv4]', $firstIPv4);
-        $html .= ' </div>';
-        $html .= ' <div class="inputs one columns omega">';
-        $html .=    __('to');
-        $html .= ' </div>';
-        $html .= ' <div class="inputs two columns omega">';
-        $html .=    get_view()->formText('iprestrict[lastIPv4]', $lastIPv4);
+        $html .= ' <div class="inputs five columns omega">';
+        $ranges = get_option('ip_ranges');
+        $rangeAliases = getRangesAliases($ranges);
+        foreach ($rangeAliases as $alias) {
+            if (in_array($alias, $actualRanges))
+                $html .= get_view()->formCheckBox("iprestrict[ip_range][$alias]", true, array('checked'=>TRUE)) . " $alias<br />";
+            else
+                $html .= get_view()->formCheckBox("iprestrict[ip_range][$alias]", true) . " $alias<br />";
+        }
         $html .= " </div></div>\n";
+                 
         // Options to the restriction
         $html .= '<div class="field">';
         $html .= ' <div class="two columns alpha">';
         $html .=    get_view()->formLabel('iprestrict[option]', __('Choose the restriction'));
         $html .= ' </div>';
         $html .= ' <div class="inputs five columns omega">';
-        $options[1] = __('Show only thumbnails');
+        //$options[1] = __('Show only thumbnails');
         $options[2] = __('Dont show any media');
-        $options[3] = __('Dont allow download of media');
-        $options[4] = __('Dont show intire item');
+        //$options[3] = __('Dont allow download of media');
+        //$options[4] = __('Dont show intire item');
         $html .=    get_view()->formSelect('iprestrict[option]', $option, null,$options);
         $html .= " </div></div>\n";
         // some comments 
@@ -203,6 +212,13 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
         // loop over all ipRestricts of an item
         if ((!empty($iprestrictPost)) && ($iprestrictPost['active']==1)){
             $iprestrictPost['resource'] = 'i';
+            // get ip ranges selected
+            $rangesSelected = array();
+            foreach ($iprestrictPost['ip_range'] as $alias => $value){
+                if ($value == 1) $rangesSelected[] = $alias;
+            }
+            unset($iprestrictPost['ip_range']);
+            $iprestrictPost['ip_ranges'] = implode(',', $rangesSelected);
             // if register exists, update
             if (!empty($iprestrictIds)){
                 foreach ($iprestrictIds as $id){
@@ -239,24 +255,36 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
     }
     
     public function filterFileMarkup($html, $args){
-        $file = $args['file'];
-        
+        $file = $args['file'];  
         if ($file instanceof File){
+            $this->numFiles++;
             try {
                 $item = get_current_record('item');
                 $iprestrictIds = $this->_db->getTable('IpRestrict')->getIpRestrictIdsByItem($item); 
                 if ($iprestrictIds) { // has restrictions
+                    $rangesAvailable = get_option('ip_ranges');
+                    $rangesOfIPs = getRangesIPs($rangesAvailable);
+                    $shouldRestrict = TRUE;
                     foreach ($iprestrictIds as $id){
                         $iprestrict = $this->_db->getTable('IpRestrict')->getIpRestrictByIdIP($item,$id);
-                        $range = $iprestrict->firstIPv4 . '-' . $iprestrict->lastIPv4;
-                        if (ipInsideRange($_SERVER['REMOTE_ADDR'], $range)){ // access granted
-                            return $html;
-                        }
-                        else {
-                            
-                            return "<em>" . get_option('ip_restrict_message') . "</em><br>"; // access denied + information
-                        }
+                        // get ranges activated
+                        if (!$iprestrict['active']) 
+                            continue;
+                        $rangesAliasOfItem = explode(',',$iprestrict->ip_ranges);
+                        foreach ($rangesAliasOfItem as $alias){
+                            foreach ($rangesOfIPs[$alias] as $iprange){
+                                if (ipInsideRange($_SERVER['REMOTE_ADDR'], $iprange)){ // access granted
+                                    $shouldRestrict = FALSE;    
+                                }
+                            } 
+                        }                       
                     }
+                    if ($shouldRestrict){
+                        if ($this->numFiles > 1) return '';
+                        return "<em>" . get_option('ip_restrict_message') . "</em><br>"; // access denied + information
+                    }
+                    else
+                        return $html;
                 }
             }
             catch (Omeka_View_Exception $ove){}    
@@ -265,4 +293,4 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
     }
     
 }
-
+//return "<em>" . get_option('ip_restrict_message') . "</em><br>"; // access denied + information

@@ -9,8 +9,7 @@ class Api_IpRestrict extends Omeka_Record_Api_AbstractRecordAdapter {
             'item_id' => $record->item_id,
             'resource' => $record->resource,
             'active' => $record->active,
-            'firstIPv4' => $record->allowedIPv4,
-            'lastIPv4' => $record->allowedIPv4Mask,
+            'ip_ranges' => $record->ip_ranges,
             'option' => $record->option,
             'comments' => $record->comments
         );
@@ -27,11 +26,8 @@ class Api_IpRestrict extends Omeka_Record_Api_AbstractRecordAdapter {
         if (isset($data->item->active)) {
             $record->active = $data->active;
         }
-        if (isset($data->item->firstIPv4)) {
-            $record->firstIPv4 = $data->firstIPv4;
-        }
-        if (isset($data->item->lastIPv4)) {
-            $record->lastIPv4 = $data->lastIPv4;
+        if (isset($data->item->ip_range)) {
+            $record->iprange = $data->iprange;
         }
         if (isset($data->item->option)) {
             $record->option = $data->option;

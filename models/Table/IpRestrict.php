@@ -3,6 +3,7 @@
 class Table_IpRestrict extends Omeka_Db_Table {
     
     /**
+     * Get ids of IpRestrict table for an item
      * 
      * @param type $item
      * @return type array() with the IDs of IpRestrict of the item

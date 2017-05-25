@@ -5,8 +5,7 @@ class IpRestrict extends Omeka_Record_AbstractRecord implements Zend_Acl_Resourc
     public $item_id;
     public $resource;
     public $active;
-    public $firstIPv4;
-    public $lastIPv4;
+    public $ip_ranges;
     public $option;
     public $comments;
     
