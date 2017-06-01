@@ -6,7 +6,7 @@ class Api_IpRestrict extends Omeka_Record_Api_AbstractRecordAdapter {
     {
         $representation = array(
             'id' => $record->id, 
-            'item_id' => $record->item_id,
+            'record_id' => $record->record_id,
             'resource' => $record->resource,
             'active' => $record->active,
             'ip_ranges' => $record->ip_ranges,
@@ -18,7 +18,7 @@ class Api_IpRestrict extends Omeka_Record_Api_AbstractRecordAdapter {
     
     public function setPostData(Omeka_Record_AbstractRecord $record, $data) {
         if (isset($data->item->id)) {
-            $record->item_id = $data->item_id;
+            $record->record_id = $data->record_id;
         }
         if (isset($data->item->resource)) {
             $record->resource = $data->resource;

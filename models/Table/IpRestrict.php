@@ -2,124 +2,117 @@
 
 class Table_IpRestrict extends Omeka_Db_Table {
     
-    /**
-     * Get ids of IpRestrict table for an item
-     * 
-     * @param type $item
-     * @return type array() with the IDs of IpRestrict of the item
+   /**
+     * Get IPRestrict information of a record
+     * @return boolean
      */
-    public function getIpRestrictIdsByItem($item){
+    public function getIpRestrictByRecord($record){
+        
+        try {
+            $record = get_current_record('item');
+        }
+        catch (Exception $ex) {}
+        try {
+            $record = get_current_record('collection');
+        } catch (Exception $ex) {}
         
         $db = get_db();
-        
-        if (($item instanceof Item) && !$item->exists()) {
-            return array();
-        } else if (is_array($item) && !count($item)) {
-            return array();
+        if (($record instanceof Item) && !$record->exists()) {
+            return FALSE;
+        } 
+        if (($record instanceof Collection) && !$record->exists()) {
+            return FALSE;
         }
-        
+        elseif (!($record instanceof Item) && !($record instanceof Collection)) {
+            return FALSE;
+        }
+               
         $alias = $this->getTableAlias();
         // Create a SELECT statement for the IpRestrict table
         $select = $db->select()->from(array($alias => $db->IpRestrict), "$alias.*");
         
         // Create a WHERE condition that will pull down all the IpRestrict info
-        if (is_array($item)) {
-            $itemIds = array();
-            foreach ($item as $it) {
-                $itemIds[] = (int)(($it instanceof Item) ? $it->id : $it);
-            }
-            $select->where("$alias.item_id IN (?)", $itemIds);
-        } else {
-            $itemId = (int)(($item instanceof Item) ? $item->id : $item);
-            $select->where("$alias.item_id = ?", $itemId);
-        }
-         
-        // Get the iprestrictions of the item.
-        $iprestricts = $this->fetchObjects($select);
-       
-        $IprestrictIds = array();
-        foreach ($iprestricts as $k => $ipr) {
-            $IprestrictIds[] = $ipr['id'];
-        }
-        return $IprestrictIds;   
-    }
-    
-    /**
-     * Get one IpRestrict Information 
-     * Return first founded or the required by the id
-     * 
-     * @param type $item
-     * @param type $id_iprestrict - id of ip_restrict table refers to the item
-     * @return type 
-     */
-    public function getIpRestrictByIdIP($item,$id_iprestrict=FALSE){
-        
-        $db = get_db();
-        
-        if (($item instanceof Item) && !$item->exists()) {
-            return array();
-        } else if (is_array($item) && !count($item)) {
-            return array();
-        }
-        
-        $alias = $this->getTableAlias();
-        // Create a SELECT statement for the IpRestrict table
-        $select = $db->select()->from(array($alias => $db->IpRestrict), "$alias.*");
-        
-        // erickson
-        if ($id_iprestrict){
-            $select->where("$alias.id = ?", $id_iprestrict);
+        if ($record instanceof Item){
+            $select->where("$alias.record_id = ? and $alias.resource='i'", $record->id);
+        } 
+        elseif ($record instanceof Collection){
+            $select->where("$alias.record_id = ? and $alias.resource='c'", $record->id);
         }
         else {
-            if (is_array($item)) {
-                $itemIds = array();
-                foreach ($item as $it) {
-                    $itemIds[] = (int)(($it instanceof Item) ? $it->id : $it);
-                }
-                $select->where("$alias.item_id IN (?)", $itemIds);
-            } else {
-                $itemId = (int)(($item instanceof Item) ? $item->id : $item);
-                $select->where("$alias.item_id = ?", $itemId);
-            }
+            return FALSE;
         }
-
         $iprestrict = $this->fetchObject($select);
-        return $iprestrict; 
+        return $iprestrict;
     }
     
-    public function getIpRestrictByItem($item, $findOnlyOne = false){
+    /**
+     * Get IPRestrict for an id + model pair
+     * @param type $model Item or Collection
+     * @param type $id
+     * @return boolean
+     */
+    public function getIpRestrictByPair($model,$id){
+        
+        $record = get_record_by_id($model, $id);
         
         $db = get_db();
-        
-        if (($item instanceof Item) && !$item->exists()) {
-            return array();
-        } else if (is_array($item) && !count($item)) {
-            return array();
+        if (($record instanceof Item) && !$record->exists()) {
+            return FALSE;
+        } 
+        if (($record instanceof Collection) && !$record->exists()) {
+            return FALSE;
         }
-        
+        elseif (!($record instanceof Item) && !($record instanceof Collection)) {
+            return FALSE;
+        }
+               
         $alias = $this->getTableAlias();
         // Create a SELECT statement for the IpRestrict table
         $select = $db->select()->from(array($alias => $db->IpRestrict), "$alias.*");
         
         // Create a WHERE condition that will pull down all the IpRestrict info
-        if (is_array($item)) {
-            $itemIds = array();
-            foreach ($item as $it) {
-                $itemIds[] = (int)(($it instanceof Item) ? $it->id : $it);
-            }
-            $select->where("$alias.item_id IN (?)", $itemIds);
-        } else {
-            $itemId = (int)(($item instanceof Item) ? $item->id : $item);
-            $select->where("$alias.item_id = ?", $itemId);
+        if ($record instanceof Item){
+            $select->where("$alias.record_id = ? and $alias.resource='i'", $record->id);
+        } 
+        elseif ($record instanceof Collection){
+            $select->where("$alias.record_id = ? and $alias.resource='c'", $record->id);
         }
+        else {
+            return FALSE;
+        }
+        $iprestrict = $this->fetchObject($select);
+        return $iprestrict;
+    }
+    
+    /**
+     * Verify if there is a IP Restrict entry for the record instance
+     * @param type $record
+     * @return boolean
+     */
+    public function hasIpRestrict($record){
+        $db = get_db();
         
-        if ($findOnlyOne) {
-            $iprestrict = $this->fetchObject($select);
-            return $iprestrict;
+        if (($record instanceof Item) && !$record->exists()) {
+            return FALSE;
+        } 
+        if (($record instanceof Collection) && !$record->exists()) {
+            return FALSE;
         }
-        else {return;}
-         
-       
+        elseif (!($record instanceof Item) && !($record instanceof Collection)) {
+            return FALSE;
+        }
+        $alias = $this->getTableAlias();
+        $select = $db->select()->from(array($alias => $db->IpRestrict), "$alias.*");
+        if ($record instanceof Item){
+            $select->where("$alias.record_id = ? and $alias.resource='i'", $record->id);
+        } 
+        elseif ($record instanceof Collection){
+            $select->where("$alias.record_id = ? and $alias.resource='c'", $record->id);
+        }
+        if ($this->fetchObject($select)) 
+            return TRUE;
+        else 
+            return FALSE;
     }
     
 }

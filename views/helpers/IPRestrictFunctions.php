@@ -65,3 +65,20 @@ function countFilesOfItem(){
     }
     return $num;
 }
+
+function validateIPRanges($IpRangeString){
+    $return = TRUE;
+    $areas = explode(';', $IpRangeString);
+    foreach ($areas as $area){
+        $setofips = explode(':', $area);
+        $ipranges = explode(',', $setofips[1]);
+        foreach ($ipranges as $iprange){
+            $ips = explode('-', $iprange);
+            foreach ($ips as $ip){
+                if (!filter_var($ip, FILTER_VALIDATE_IP))
+                    $return = FALSE;
+            }
+        }
+    }
+    return $return;
+}

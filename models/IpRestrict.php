@@ -2,7 +2,7 @@
 
 class IpRestrict extends Omeka_Record_AbstractRecord implements Zend_Acl_Resource_Interface{
     
-    public $item_id;
+    public $record_id;
     public $resource;
     public $active;
     public $ip_ranges;
@@ -10,11 +10,9 @@ class IpRestrict extends Omeka_Record_AbstractRecord implements Zend_Acl_Resourc
     public $comments;
     
     public function _validate() {
-        
     }
     
-    public function getResourceId()
-    {
+    public function getResourceId(){
         return 'IpRestricts';
     }
     
