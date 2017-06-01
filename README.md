@@ -15,5 +15,3 @@ To do?
 >1. If restriction, show only thumbnails.
 >
 >2. If restriction, dont show any information about the item or collection.
-
-
