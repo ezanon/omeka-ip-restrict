@@ -43,20 +43,25 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
      */
     public function hookInstall()
     {
-       $db = $this->_db;
-       $sql = "
-            CREATE TABLE IF NOT EXISTS `omeka_ip_restricts` (
-             `id` int(10) unsigned NOT NULL,
-               `record_id` int(10) unsigned NOT NULL,
-               `resource` char(1) COLLATE utf8_unicode_ci NOT NULL,
-               `active` int(1) NOT NULL DEFAULT '0',
-               `ip_ranges` varchar(255) COLLATE utf8_unicode_ci NOT NULL,
-               `option` int(1) NOT NULL,
-               `comments` text COLLATE utf8_unicode_ci
-             ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
-       ";
-       $db->query($sql);
-       $this->_installOptions();
+        $db = $this->_db;
+        $sql = "
+             CREATE TABLE IF NOT EXISTS `omeka_ip_restricts` (
+              `id` int(10) unsigned NOT NULL,
+                `record_id` int(10) unsigned NOT NULL,
+                `resource` char(1) COLLATE utf8_unicode_ci NOT NULL,
+                `active` int(1) NOT NULL DEFAULT '0',
+                `ip_ranges` varchar(255) COLLATE utf8_unicode_ci NOT NULL,
+                `option` int(1) NOT NULL,
+                `comments` text COLLATE utf8_unicode_ci
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+        ";
+        $db->query($sql);
+        $sql = "ALTER TABLE `omeka_ip_restricts` ADD PRIMARY KEY (`id`)";
+        $db->query($sql);
+        $sql = "ALTER TABLE `omeka_ip_restricts` MODIFY `id` int(10) unsigned NOT NULL AUTO_INCREMENT";
+        $db->query($sql);
+        
+        $this->_installOptions();
     }
     
     /**
@@ -74,8 +79,15 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
     /**
      * Upgrade the plugin.
      */
-    public function hookUpgrade()
+    public function hookUpgrade($args)
     {        
+        if (version_compare($args['old_version'], '1.0.2', '<')){
+            $db = $this->_db;
+            $sql = "ALTER TABLE `omeka_ip_restricts` ADD PRIMARY KEY (`id`)";
+            $db->query($sql);
+            $sql = "ALTER TABLE `omeka_ip_restricts` MODIFY `id` int(10) unsigned NOT NULL AUTO_INCREMENT";
+            $db->query($sql);
+        }
         // $this->_upgradeOptions();
     }
     
