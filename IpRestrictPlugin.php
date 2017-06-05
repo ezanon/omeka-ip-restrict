@@ -159,7 +159,7 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
         else{
             $active = false;
             $ip_ranges = false;
-            $option = 2;
+            $option = 1;
             $comments = '';
         }
         // checkbox to active filter 
@@ -194,7 +194,7 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
         $html .=    get_view()->formLabel('iprestrict[option]', __('Choose the restriction'));
         $html .= ' </div>';
         $html .= ' <div class="inputs five columns omega">';
-        //$options[1] = __('Show only thumbnails');
+        $options[1] = __('Show only thumbnails');
         $options[2] = __('Dont show any media');
         //$options[3] = __('Dont allow download of media');
         //$options[4] = __('Dont show intire item');
@@ -344,6 +344,14 @@ class IpRestrictPlugin extends Omeka_Plugin_AbstractPlugin {
                 if ($shouldRestrict){
                     $option = ($shouldRestrictCollection ? $iprestrictCollection['option'] : $iprestrictItem['option']);
                     switch ($option) {
+                        // show only thumbnails without link to original
+                        case 1:
+                            if ($file->hasThumbnail()){
+                                $htmlWithoutLink = '<div class="item-file image-jpeg">' . file_image('thumbnail', array('class' => 'thumb'), $file) . '</div>';
+                                return $htmlWithoutLink;
+                            }
+                            else return "<em>" . get_option('ip_restrict_message') . "</em><br>"; // access denied + information because dont have thumbnail
+                            break;
                         // dont show any media files
                         case 2:
                             if ($this->numFiles > 1) 
